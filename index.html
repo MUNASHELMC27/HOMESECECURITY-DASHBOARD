@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,23 +6,181 @@
   <title>ESP32 Hazard Monitoring Dashboard</title>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: #121212;
+      color: #ffffff;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 40px;
+      margin: 0;
+    }
+    h1 {
+      color: #00bcd4;
+      text-align: center;
+    }
+    .dashboard {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+    }
+    .card {
+      background: #1e1e1e;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px #00bcd4;
+      min-width: 280px;
+      flex: 1;
+      max-width: 600px;
+    }
+    .status {
+      font-size: 1.2em;
+      margin: 10px 0;
+    }
+    .status-icon {
+      font-size: 1.5em;
+      vertical-align: middle;
+    }
+    .alert {
+      background-color: #b00020;
+      color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-weight: bold;
+      animation: flash 1s infinite alternate;
+    }
+    @keyframes flash {
+      0% { background-color: #b00020; }
+      100% { background-color: #ff5252; }
+    }
+    canvas {
+      background-color: #fff;
+      border-radius: 10px;
+    }
+    .timestamp {
+      font-size: 0.9em;
+      color: #bbb;
+    }
+  </style>
 </head>
 <body>
   <h1>ESP32 Hazard Monitoring</h1>
-  <div class="card-container">
-    <div class="card">
+  <div class="dashboard">
+    <div class="card" id="statusCard">
       <h3>Sensor Status</h3>
-      <p id="gasStatus">Gas Sensor: <span class="status-icon">❓</span></p>
-      <p id="flameStatus">Flame Sensor: <span class="status-icon">❓</span></p>
-      <p id="mqttStatus">MQTT: <span class="status-icon">❓</span></p>
-      <p id="lastUpdate">Last update: N/A</p>
+      <div id="gasStatus" class="status">Gas Sensor: <span class="status-icon">✅</span> Safe</div>
+      <div id="flameStatus" class="status">Flame Sensor: <span class="status-icon">✅</span> No flame detected</div>
+      <div id="mqttStatus" class="status">MQTT: <span class="status-icon">✅</span> Connected</div>
+      <div class="timestamp" id="lastUpdate">Last update: N/A</div>
     </div>
     <div class="card">
       <h3>Real-Time Sensor Data</h3>
       <canvas id="hazardChart" height="200"></canvas>
     </div>
   </div>
-  <script src="script.js"></script>
+
+  <audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
+
+  <script>
+    const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
+
+    const gasStatus = document.getElementById('gasStatus');
+    const flameStatus = document.getElementById('flameStatus');
+    const mqttStatus = document.getElementById('mqttStatus');
+    const lastUpdate = document.getElementById('lastUpdate');
+    const alertSound = document.getElementById('alertSound');
+
+    const ctx = document.getElementById('hazardChart').getContext('2d');
+    const hazardChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Hazard Value',
+          data: [],
+          fill: false,
+          borderColor: '#00bcd4',
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        scales: {
+          x: { title: { display: true, text: 'Time' }},
+          y: { beginAtZero: true, title: { display: true, text: 'Value' }}
+        }
+      }
+    });
+
+    client.on('connect', () => {
+      console.log('MQTT Connected');
+      mqttStatus.innerHTML = 'MQTT: <span class="status-icon">✅</span> Connected';
+      client.subscribe('esp32/hazard');
+    });
+
+    client.on('error', (err) => {
+      console.error('MQTT Error:', err);
+      mqttStatus.innerHTML = 'MQTT: <span class="status-icon">❌</span> Error';
+    });
+
+    client.on('message', (topic, message) => {
+      const time = new Date().toLocaleTimeString();
+      let value = null;
+      let gas = 'safe';
+      let flame = 'none';
+
+      try {
+        const data = JSON.parse(message.toString());
+        value = parseFloat(data.value);
+        gas = data.gas || gas;
+        flame = data.flame || flame;
+      } catch {
+        // Fallback if plain numeric value is sent
+        value = parseFloat(message.toString());
+      }
+
+      if (isNaN(value)) {
+        console.warn("Received invalid data:", message.toString());
+        return;
+      }
+
+      hazardChart.data.labels.push(time);
+      hazardChart.data.datasets[0].data.push(value);
+      if (hazardChart.data.labels.length > 20) {
+        hazardChart.data.labels.shift();
+        hazardChart.data.datasets[0].data.shift();
+      }
+      hazardChart.update();
+
+      lastUpdate.textContent = `Last update: ${time}`;
+
+      // Update status
+      updateStatus(gas, flame, value);
+    });
+
+    function updateStatus(gas, flame, value) {
+      // Gas
+      if (gas === 'danger') {
+        gasStatus.innerHTML = 'Gas Sensor: <span class="status-icon">❌</span> Dangerous!';
+        gasStatus.classList.add('alert');
+        alertSound.play();
+      } else {
+        gasStatus.innerHTML = 'Gas Sensor: <span class="status-icon">✅</span> Safe';
+        gasStatus.classList.remove('alert');
+      }
+
+      // Flame
+      if (flame === 'detected') {
+        flameStatus.innerHTML = 'Flame Sensor: <span class="status-icon">❌</span> Flame Detected!';
+        flameStatus.classList.add('alert');
+        alertSound.play();
+      } else {
+        flameStatus.innerHTML = 'Flame Sensor: <span class="status-icon">✅</span> No flame detected';
+        flameStatus.classList.remove('alert');
+      }
+    }
+  </script>
 </body>
 </html>
