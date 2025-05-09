@@ -1,35 +1,96 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ESP32 Hazard Monitoring Dashboard</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background: #121212;
+      color: #ffffff;
+      font-family: 'Segoe UI', sans-serif;
+      text-align: center;
+      padding: 40px;
+    }
+    h1 {
+      color: #00bcd4;
+    }
+    .card {
+      background: #1e1e1e;
+      padding: 20px;
+      margin: 20px auto;
+      border-radius: 12px;
+      box-shadow: 0 0 10px #00bcd4;
+      max-width: 800px;
+    }
+    canvas {
+      background-color: #fff;
+      border-radius: 10px;
+    }
+  </style>
 </head>
 <body>
-  <h2>ESP32 Hazard Monitoring Dashboard</h2>
-  <div>
-    <p><strong>Sensor Data:</strong> <span id="sensor-data">Waiting...</span></p>
-    <p><strong>Alert:</strong> <span id="hazard-alert">None</span></p>
+  <h1>ESP32 Hazard Monitoring</h1>
+  <div class="card">
+    <h3>Real-Time Sensor Data</h3>
+    <canvas id="hazardChart" height="200"></canvas>
   </div>
 
   <script>
-    const client = new Paho.MQTT.Client("broker.hivemq.com", 8000, "webClient-" + parseInt(Math.random() * 100, 10));
-    client.onMessageArrived = onMessageArrived;
-    client.onConnectionLost = () => console.log("Connection lost");
-    client.connect({
-      onSuccess: () => {
-        console.log("Connected to broker");
-        client.subscribe("esp32/hazard/data");
-        client.subscribe("esp32/hazard/alert");
+    const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
+
+    client.on('connect', () => {
+      console.log('MQTT Connected');
+      client.subscribe('esp32/hazard');
+    });
+
+    const ctx = document.getElementById('hazardChart').getContext('2d');
+    const hazardChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Hazard Value',
+          data: [],
+          fill: false,
+          borderColor: '#00bcd4',
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        scales: {
+          x: {
+            title: { display: true, text: 'Time' },
+          },
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Value' },
+          }
+        }
       }
     });
 
-    function onMessageArrived(message) {
-      if (message.destinationName === "esp32/hazard/data") {
-        document.getElementById("sensor-data").textContent = message.payloadString;
-      } else if (message.destinationName === "esp32/hazard/alert") {
-        document.getElementById("hazard-alert").textContent = message.payloadString;
+    client.on('message', (topic, message) => {
+      if (topic === 'esp32/hazard') {
+        const value = parseFloat(message.toString());
+        const time = new Date().toLocaleTimeString();
+
+        hazardChart.data.labels.push(time);
+        hazardChart.data.datasets[0].data.push(value);
+
+        // Limit to last 20 points
+        if (hazardChart.data.labels.length > 20) {
+          hazardChart.data.labels.shift();
+          hazardChart.data.datasets[0].data.shift();
+        }
+
+        hazardChart.update();
       }
-    }
+    });
   </script>
 </body>
 </html>
