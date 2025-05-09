@@ -1,73 +1,74 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ESP32 Hazard Monitoring</title>
-  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hazard Monitoring Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    header {
+      background: #1f1f1f;
+      padding: 20px;
+      width: 100%;
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      border-bottom: 2px solid #333;
+    }
+    .sensor {
+      background: #1e1e2f;
+      margin: 20px;
+      padding: 20px;
+      border-radius: 10px;
+      width: 80%;
+      max-width: 600px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    .sensor h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+    .status {
+      font-size: 18px;
+      color: #00ff99;
+    }
+    .alert {
+      color: #ff4d4d;
+      font-weight: bold;
+    }
+  </style>
 </head>
-<body class="bg-gray-900 text-white font-sans">
-
-  <div class="container mx-auto p-4">
-    <h1 class="text-3xl font-bold mb-4 text-center">ESP32 Hazard Monitoring Dashboard</h1>
-
-    <div id="status" class="text-center text-sm mb-6 text-yellow-400">Connecting to MQTT Broker...</div>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div class="bg-gray-800 rounded-2xl shadow-md p-4">
-        <h2 class="text-xl font-semibold">Temperature</h2>
-        <p class="text-4xl text-cyan-400 mt-2" id="temp">-- °C</p>
-      </div>
-
-      <div class="bg-gray-800 rounded-2xl shadow-md p-4">
-        <h2 class="text-xl font-semibold">Gas Level</h2>
-        <p class="text-4xl text-orange-400 mt-2" id="gas">--</p>
-      </div>
-
-      <div class="bg-gray-800 rounded-2xl shadow-md p-4">
-        <h2 class="text-xl font-semibold">Motion</h2>
-        <p class="text-4xl mt-2" id="motion">--</p>
-      </div>
-    </div>
-
-    <div id="alertBox" class="mt-6 hidden p-4 bg-red-600 text-center text-white rounded-xl font-bold text-lg">
-      ⚠️ HAZARD DETECTED!
-    </div>
+<body>
+  <header>Hazard Monitoring Dashboard</header>
+  <div class="sensor">
+    <h2>Gas Sensor</h2>
+    <p class="status" id="gasStatus">Waiting for data...</p>
   </div>
-
+  <div class="sensor">
+    <h2>Flame Sensor</h2>
+    <p class="status" id="flameStatus">Waiting for data...</p>
+  </div>
+  <div class="sensor">
+    <h2>MQTT Alerts</h2>
+    <p class="status" id="mqttAlert">Connecting...</p>
+  </div>
   <script>
-    const client = mqtt.connect('wss://your-mqtt-broker.com:port'); // Replace with your broker
-    const statusEl = document.getElementById('status');
-    const tempEl = document.getElementById('temp');
-    const gasEl = document.getElementById('gas');
-    const motionEl = document.getElementById('motion');
-    const alertBox = document.getElementById('alertBox');
-
-    client.on('connect', () => {
-      statusEl.textContent = 'Connected to MQTT Broker';
-      statusEl.classList.replace('text-yellow-400', 'text-green-400');
-
-      client.subscribe('esp32/sensor/temperature');
-      client.subscribe('esp32/sensor/gas');
-      client.subscribe('esp32/sensor/motion');
-    });
-
-    client.on('message', (topic, message) => {
-      const data = message.toString();
-
-      if (topic.includes('temperature')) tempEl.textContent = `${data} °C`;
-      if (topic.includes('gas')) {
-        gasEl.textContent = data;
-        if (parseInt(data) > 300) alertBox.classList.remove('hidden');
-        else alertBox.classList.add('hidden');
-      }
-
-      if (topic.includes('motion')) {
-        motionEl.textContent = data === '1' ? 'Detected' : 'None';
-        motionEl.className = data === '1' ? 'text-red-400 text-4xl' : 'text-green-400 text-4xl';
-      }
-    });
+    // Dummy simulation of sensor values for demo purposes
+    setTimeout(() => {
+      document.getElementById("gasStatus").innerHTML = "Safe";
+      document.getElementById("flameStatus").innerHTML = "No flame detected";
+      document.getElementById("mqttAlert").innerHTML = "Connected to MQTT broker";
+    }, 2000);
   </script>
 </body>
 </html>
