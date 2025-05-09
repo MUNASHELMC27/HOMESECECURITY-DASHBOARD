@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,91 +7,23 @@
   <title>ESP32 Hazard Monitoring Dashboard</title>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body {
-      background: #121212;
-      color: #ffffff;
-      font-family: 'Segoe UI', sans-serif;
-      text-align: center;
-      padding: 40px;
-    }
-    h1 {
-      color: #00bcd4;
-    }
-    .card {
-      background: #1e1e1e;
-      padding: 20px;
-      margin: 20px auto;
-      border-radius: 12px;
-      box-shadow: 0 0 10px #00bcd4;
-      max-width: 800px;
-    }
-    canvas {
-      background-color: #fff;
-      border-radius: 10px;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <h1>ESP32 Hazard Monitoring</h1>
-  <div class="card">
-    <h3>Real-Time Sensor Data</h3>
-    <canvas id="hazardChart" height="200"></canvas>
+  <div class="card-container">
+    <div class="card">
+      <h3>Sensor Status</h3>
+      <p id="gasStatus">Gas Sensor: <span class="status-icon">❓</span></p>
+      <p id="flameStatus">Flame Sensor: <span class="status-icon">❓</span></p>
+      <p id="mqttStatus">MQTT: <span class="status-icon">❓</span></p>
+      <p id="lastUpdate">Last update: N/A</p>
+    </div>
+    <div class="card">
+      <h3>Real-Time Sensor Data</h3>
+      <canvas id="hazardChart" height="200"></canvas>
+    </div>
   </div>
-
-  <script>
-    const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
-
-    client.on('connect', () => {
-      console.log('MQTT Connected');
-      client.subscribe('esp32/hazard');
-    });
-
-    const ctx = document.getElementById('hazardChart').getContext('2d');
-    const hazardChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [{
-          label: 'Hazard Value',
-          data: [],
-          fill: false,
-          borderColor: '#00bcd4',
-          tension: 0.3
-        }]
-      },
-      options: {
-        responsive: true,
-        animation: false,
-        scales: {
-          x: {
-            title: { display: true, text: 'Time' },
-          },
-          y: {
-            beginAtZero: true,
-            title: { display: true, text: 'Value' },
-          }
-        }
-      }
-    });
-
-    client.on('message', (topic, message) => {
-      if (topic === 'esp32/hazard') {
-        const value = parseFloat(message.toString());
-        const time = new Date().toLocaleTimeString();
-
-        hazardChart.data.labels.push(time);
-        hazardChart.data.datasets[0].data.push(value);
-
-        // Limit to last 20 points
-        if (hazardChart.data.labels.length > 20) {
-          hazardChart.data.labels.shift();
-          hazardChart.data.datasets[0].data.shift();
-        }
-
-        hazardChart.update();
-      }
-    });
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
