@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ESP32 Hazard Monitor Dashboard</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+    h1 { text-align: center; }
+    .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 400px; margin: 20px auto; }
+    .label { font-weight: bold; }
+    .alert { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>ESP32 Hazard Monitor</h1>
+
+  <div class="card">
+    <p><span class="label">Temperature:</span> <span id="temp">--</span> °C</p>
+    <p><span class="label">Humidity:</span> <span id="hum">--</span> %</p>
+    <p><span class="label">Latest Alert:</span> <span class="alert" id="alert">None</span></p>
+  </div>
+
+  <script>
+    const tempEl = document.getElementById("temp");
+    const humEl = document.getElementById("hum");
+    const alertEl = document.getElementById("alert");
+
+    const client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt");
+
+    client.on("connect", () => {
+      console.log("Connected to MQTT broker");
+      client.subscribe("esp32/hazard/sensors");
+      client.subscribe("esp32/hazard/alert");
+    });
+
+    client.on("message", (topic, message) => {
+      if (topic === "esp32/hazard/sensors") {
+        const data = JSON.parse(message.toString());
+        tempEl.textContent = data.temperature;
+        humEl.textContent = data.humidity;
+      } else if (topic === "esp32/hazard/alert") {
+        alertEl.textContent = message.toString();
+      }
+    });
+  </script>
+</body>
+</html>
