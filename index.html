@@ -1,74 +1,64 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Hazard Monitoring Dashboard</title>
+  <title>ESP32 Hazard Monitoring Dashboard</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <style>
     body {
-      margin: 0;
-      font-family: Arial, sans-serif;
       background: #121212;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
-    }
-    header {
-      background: #1f1f1f;
-      padding: 20px;
-      width: 100%;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', sans-serif;
       text-align: center;
-      font-size: 24px;
+      padding: 40px;
+    }
+    h1 {
+      color: #00bcd4;
+      margin-bottom: 10px;
+    }
+    .card {
+      background: #1e1e1e;
+      padding: 30px;
+      margin: 20px auto;
+      border-radius: 12px;
+      box-shadow: 0 0 10px #00bcd4;
+      max-width: 400px;
+    }
+    .label {
+      color: #90caf9;
       font-weight: bold;
-      border-bottom: 2px solid #333;
     }
-    .sensor {
-      background: #1e1e2f;
-      margin: 20px;
-      padding: 20px;
-      border-radius: 10px;
-      width: 80%;
-      max-width: 600px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.5);
-    }
-    .sensor h2 {
-      margin-top: 0;
+    .data {
       font-size: 20px;
-    }
-    .status {
-      font-size: 18px;
-      color: #00ff99;
-    }
-    .alert {
-      color: #ff4d4d;
-      font-weight: bold;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
-  <header>Hazard Monitoring Dashboard</header>
-  <div class="sensor">
-    <h2>Gas Sensor</h2>
-    <p class="status" id="gasStatus">Waiting for data...</p>
+  <h1>ESP32 Hazard Monitoring</h1>
+  <div class="card">
+    <div class="label">Real-Time Hazard Data:</div>
+    <div id="mqtt-data" class="data">Waiting for data...</div>
   </div>
-  <div class="sensor">
-    <h2>Flame Sensor</h2>
-    <p class="status" id="flameStatus">Waiting for data...</p>
-  </div>
-  <div class="sensor">
-    <h2>MQTT Alerts</h2>
-    <p class="status" id="mqttAlert">Connecting...</p>
-  </div>
+
   <script>
-    // Dummy simulation of sensor values for demo purposes
-    setTimeout(() => {
-      document.getElementById("gasStatus").innerHTML = "Safe";
-      document.getElementById("flameStatus").innerHTML = "No flame detected";
-      document.getElementById("mqttAlert").innerHTML = "Connected to MQTT broker";
-    }, 2000);
+    const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
+
+    client.on('connect', function () {
+      console.log("MQTT Connected");
+      client.subscribe('esp32/hazard');
+    });
+
+    client.on('message', function (topic, message) {
+      if (topic === 'esp32/hazard') {
+        document.getElementById('mqtt-data').innerText = message.toString();
+      }
+    });
+
+    client.on('error', function (error) {
+      console.error("MQTT Error:", error);
+    });
   </script>
 </body>
 </html>
